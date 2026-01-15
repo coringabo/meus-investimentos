@@ -1,0 +1,214 @@
+]<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InvestApp Elite | Categorias</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #f4f7f9; --card: #ffffff; --text: #2d3436;
+            --primary: #4361ee; --green: #00b894; --red: #d63031; --border: #dfe6e9;
+            --fii: #0984e3; --acao: #6c5ce7; --cripto: #f1c40f; --outros: #95a5a6;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 100px; }
+
+        /* NAVEGAÇÃO */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--card); border-top: 1px solid var(--border);
+            display: flex; justify-content: space-around; padding: 15px 0; z-index: 1000;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #b2bec3; cursor: pointer; font-size: 11px; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); font-weight: bold; transform: translateY(-5px); }
+        .nav-icon { font-size: 22px; }
+
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+        .page { display: none; }
+        .page.active { display: block; animation: slideUp 0.4s ease; }
+
+        /* CARDS */
+        .card { background: var(--card); padding: 22px; border-radius: 28px; box-shadow: 0 10px 20px rgba(0,0,0,0.03); margin-bottom: 20px; }
+        .gradient-card { background: linear-gradient(135deg, #4361ee, #7209b7); color: white; }
+        
+        .asset-card { background: var(--card); border-radius: 24px; padding: 20px; margin-bottom: 15px; border: 1px solid var(--border); position: relative; }
+        .category-tag { font-size: 10px; padding: 3px 8px; border-radius: 20px; color: white; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; display: inline-block; }
+
+        /* BOTÕES MANUAL */
+        .controls { display: flex; align-items: center; justify-content: space-between; margin: 15px 0; }
+        .btn-qty { width: 45px; height: 45px; border-radius: 15px; border: none; font-size: 22px; cursor: pointer; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .qty-num { font-size: 28px; font-weight: 800; }
+
+        /* FORMULÁRIO */
+        input, select { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid var(--border); border-radius: 14px; background: #fdfdfd; font-size: 16px; }
+        label { font-size: 13px; font-weight: 700; color: #636e72; margin-left: 5px; }
+        .btn-save { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 18px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="showPage('home')" id="n-home"><span class="nav-icon">📊</span>Home</div>
+        <div class="nav-item" onclick="showPage('carteira')" id="n-carteira"><span class="nav-icon">💼</span>Carteira</div>
+        <div class="nav-item" onclick="showPage('investir')" id="n-investir"><span class="nav-icon">➕</span>Novo</div>
+    </nav>
+
+    <div class="container">
+        <div id="home" class="page active">
+            <div class="card gradient-card">
+                <small style="opacity: 0.8;">Patrimônio Total</small>
+                <h1 id="home-total" style="font-size: 32px;">R$ 0,00</h1>
+                <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div><small style="opacity: 0.8;">Renda Mensal</small><h3 id="home-renda">R$ 0,00</h3></div>
+                    <button onclick="syncB3()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 12px;">🔄 B3</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 style="margin-bottom: 15px;">Divisão por Setor</h3>
+                <canvas id="categoryChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+
+        <div id="carteira" class="page">
+            <h2 style="margin-bottom: 20px;">Minha Carteira</h2>
+            <div id="lista-ativos"></div>
+        </div>
+
+        <div id="investir" class="page">
+            <div class="card">
+                <h3>Adicionar Novo</h3>
+                <label>Ticker (Código)</label><input type="text" id="tk" placeholder="Ex: MXRF11">
+                <label>Categoria</label>
+                <select id="cat">
+                    <option value="fii">Fundo Imobiliário (FII)</option>
+                    <option value="acao">Ação</option>
+                    <option value="cripto">Criptomoeda</option>
+                    <option value="outros">Outros</option>
+                </select>
+                <label>Meta de Cotas</label><input type="number" id="mt" placeholder="Ex: 100">
+                <label>Meta em Dinheiro (R$)</label><input type="number" id="mv" placeholder="Ex: 1000">
+                <label>Preço Pago / Atual</label><input type="number" id="pr" placeholder="10.00" step="0.01">
+                <label>Rendimento por Cota</label><input type="number" id="rd" placeholder="0.10" step="0.01">
+                <button class="btn-save" onclick="addAtivo()">Adicionar à Carteira</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ativos = JSON.parse(localStorage.getItem('invest_v4_cat')) || [];
+        let chartInstance = null;
+        const catColors = { fii: '#0984e3', acao: '#6c5ce7', cripto: '#f1c40f', outros: '#95a5a6' };
+
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('n-' + id).classList.add('active');
+            if(id === 'home') renderChart();
+        }
+
+        function addAtivo() {
+            const tk = document.getElementById('tk').value.toUpperCase().trim();
+            const ct = document.getElementById('cat').value;
+            const mt = parseInt(document.getElementById('mt').value) || 0;
+            const mv = parseFloat(document.getElementById('mv').value) || 0;
+            const pr = parseFloat(document.getElementById('pr').value) || 0;
+            const rd = parseFloat(document.getElementById('rd').value) || 0;
+
+            if(!tk) return alert("Digite o Ticker!");
+            ativos.push({ id: Date.now(), ticker: tk, categoria: ct, qtd: 0, meta: mt, metaVal: mv, preco: pr, rend: rd });
+            save(); showPage('carteira');
+            document.getElementById('tk').value = '';
+        }
+
+        function changeQty(id, delta) {
+            const i = ativos.findIndex(a => a.id === id);
+            ativos[i].qtd = Math.max(0, ativos[i].qtd + delta);
+            save();
+        }
+
+        async function syncB3() {
+            if(ativos.length === 0) return;
+            try {
+                const r = await fetch(`https://brapi.dev/api/quote/${ativos.map(a => a.ticker).join(',')}`);
+                const d = await r.json();
+                d.results.forEach(res => {
+                    let i = ativos.findIndex(a => a.ticker === res.symbol);
+                    if(i !== -1) ativos[i].preco = res.regularMarketPrice;
+                });
+                save(); alert("Preços atualizados!");
+            } catch(e) { alert("Erro ao sincronizar."); }
+        }
+
+        function save() {
+            localStorage.setItem('invest_v4_cat', JSON.stringify(ativos));
+            render();
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+
+            const resumo = { fii: 0, acao: 0, cripto: 0, outros: 0 };
+            ativos.forEach(a => resumo[a.categoria] += (a.qtd * a.preco));
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['FIIs', 'Ações', 'Cripto', 'Outros'],
+                    datasets: [{
+                        data: Object.values(resumo),
+                        backgroundColor: Object.values(catColors),
+                        borderWidth: 0
+                    }]
+                },
+                options: { cutout: '75%', plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        function render() {
+            const lista = document.getElementById('lista-ativos');
+            lista.innerHTML = '';
+            let tVal = 0, tRen = 0;
+
+            ativos.forEach(a => {
+                const total = a.qtd * a.preco;
+                const renda = a.qtd * a.rend;
+                tVal += total; tRen += renda;
+                const perc = a.meta > 0 ? Math.min((a.qtd/a.meta)*100, 100) : 0;
+
+                lista.innerHTML += `
+                    <div class="asset-card" style="border-top: 4px solid ${catColors[a.categoria]}">
+                        <span class="category-tag" style="background:${catColors[a.categoria]}">${a.categoria}</span>
+                        <div style="display:flex; justify-content:space-between">
+                            <strong>${a.ticker}</strong>
+                            <b style="color:var(--green)">+ R$ ${renda.toFixed(2)}</b>
+                        </div>
+                        <div class="controls">
+                            <button class="btn-qty" style="background:var(--red)" onclick="changeQty(${a.id},-1)">-</button>
+                            <span class="qty-num">${a.qtd}</span>
+                            <button class="btn-qty" style="background:var(--green)" onclick="changeQty(${a.id},1)">+</button>
+                        </div>
+                        <div style="height:6px; background:#eee; border-radius:3px; overflow:hidden">
+                            <div style="width:${perc}%; height:100%; background:var(--primary); transition:0.5s"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:gray">
+                            <span>Valor: R$ ${total.toFixed(2)}</span>
+                            <span onclick="remover(${a.id})" style="color:var(--red); cursor:pointer">Remover</span>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('home-total').innerText = `R$ ${tVal.toFixed(2)}`;
+            document.getElementById('home-renda').innerText = `R$ ${tRen.toFixed(2)}`;
+        }
+
+        function remover(id) { if(confirm("Excluir?")) { ativos = ativos.filter(a => a.id !== id); save(); } }
+
+        render(); renderChart();
+    </script>
+</body>
+</html>
